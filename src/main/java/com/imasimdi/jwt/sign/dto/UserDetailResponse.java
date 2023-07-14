@@ -14,7 +14,7 @@ import java.util.List;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class SignResponse {
+public class UserDetailResponse {
 
     private Long id;
 
@@ -28,14 +28,15 @@ public class SignResponse {
 
     private List<Authority> roles = new ArrayList<>();
 
-    private TokenDto token;
+    private String token;
 
-    public SignResponse(Member member) {
+    public UserDetailResponse(Member member) {
         this.id = member.getId();
         this.account = member.getAccount();
         this.nickname = member.getNickname();
         this.name = member.getName();
         this.email = member.getEmail();
         this.roles = member.getRoles();
+        this.token = member.getRefreshToken();
     }
 }
