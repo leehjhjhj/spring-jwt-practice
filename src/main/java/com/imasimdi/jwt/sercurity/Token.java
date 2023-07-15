@@ -18,13 +18,12 @@ import java.util.concurrent.TimeUnit;
 @NoArgsConstructor
 public class Token {
 
-    @Id
     @JsonIgnore
     private Long id;
 
     private String refresh_token;
 
-    @TimeToLive(unit = TimeUnit.DAYS)
+    @TimeToLive(unit = TimeUnit.HOURS)
     private Integer expiration;
 
     public void setExpiration(Integer expiration) {

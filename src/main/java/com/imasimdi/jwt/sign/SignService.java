@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -33,8 +34,6 @@ public class SignService {
         if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
             throw new BadCredentialsException("잘못된 계정정보입니다.");
         }
-        String refreshToken = createRefreshToken(member);
-        member.setRefreshToken(refreshToken);
 
         return SignResponse.builder()
                 .id(member.getId())
@@ -59,8 +58,13 @@ public class SignService {
                     .nickname(request.getNickname())
                     .email(request.getEmail())
                     .build();
+
             member.setRoles(Collections.singletonList(Authority.builder().name("ROLE_USER").build()));
             memberRepository.save(member);
+
+            String refreshToken = createRefreshToken(member);
+            member.setRefreshToken(refreshToken);
+
         } catch (Exception e) {
             System.out.println(e.getMessage());
             throw new Exception("잘못된 요청입니다.");
@@ -82,6 +86,7 @@ public class SignService {
      * 형태로 저장한다.
      */
     public String createRefreshToken(Member member) {
+        System.out.println(member.getId());
         Token token = tokenRepository.save(
                 Token.builder()
                         .id(member.getId())
@@ -91,41 +96,31 @@ public class SignService {
         );
         return token.getRefresh_token();
     }
-
-    public Token validRefreshToken(Member member, String refreshToken) throws Exception {
-        Token token = tokenRepository.findById(member.getId()).orElseThrow(() -> new Exception("만료된 계정입니다. 로그인을 다시 시도하세요"));
+    //고쳐야함
+    public Optional<Token> validRefreshToken(Member member, String refreshToken) throws Exception {
+        Optional<Token> token = tokenRepository.findById(member.getId());
         // 해당유저의 Refresh 토큰 만료 : Redis에 해당 유저의 토큰이 존재하지 않음
-        if (token.getRefresh_token() == null) {
+        if (token == null) {
             return null;
         } else {
-            // 리프레시 토큰 만료일자가 얼마 남지 않았을 때 만료시간 연장..?
-            if(token.getExpiration() < 10) {
-                token.setExpiration(1000);
-                tokenRepository.save(token);
-            }
-
             // 토큰이 같은지 비교
-            if(!token.getRefresh_token().equals(refreshToken)) {
-                return null;
-            } else {
-                return token;
+            if token.get().getRefresh_token()
+            return token;
             }
-        }
     }
 
     public TokenDto refreshAccessToken(TokenDto token) throws Exception {
         String account = jwtProvider.getAccount(token.getAccess_token());
         Member member = memberRepository.findByAccount(account).orElseThrow(() ->
                 new BadCredentialsException("잘못된 계정정보입니다."));
-        Token refreshToken = validRefreshToken(member, token.getRefresh_token());
 
-        if (refreshToken != null) {
+        Optional<Token> refreshToken = validRefreshToken(member, token.getRefresh_token());
+        if (refreshToken == null) {
+            member.setRefreshToken(createRefreshToken(member));
+        }
             return TokenDto.builder()
                     .access_token(jwtProvider.createToken(account, member.getRoles()))
-                    .refresh_token(refreshToken.getRefresh_token())
+                    .refresh_token(refreshToken.get().getRefresh_token())
                     .build();
-        } else {
-            throw new Exception("로그인을 해주세요");
         }
     }
-}
